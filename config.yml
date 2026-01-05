@@ -1,0 +1,15 @@
+source:
+  repos:
+    - owner: pandas-dev
+      repo: pandas
+
+ingestion:
+  per_page: 100
+  state_path: ".state/watermarks.json"
+  full_since: "2024-01-01T00:00:00Z"
+
+rules:
+  component_prefixes: ["component:", "module:", "area:"]
+  critical_labels: ["Critical", "P0", "High Priority", "Bug"]   # à ajuster après observation
+  sla_hours_critical: 72
+  hours_in_month: 720
