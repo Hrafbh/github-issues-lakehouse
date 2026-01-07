@@ -14,6 +14,9 @@ def main():
     if args.command == "ingest":
         from gh_issues_lakehouse.ingest import run_ingest
         run_ingest()
+    elif args.command == "silver":
+        from gh_issues_lakehouse.silver import run_silver
+        run_silver()
     else:
         print(f"{args.command} not implemented yet (coming in next commits).")
 
