@@ -5,11 +5,61 @@ source:
 
 ingestion:
   per_page: 100
-  state_path: ".state/watermarks.json"
   full_since: "2024-01-01T00:00:00Z"
 
 rules:
-  component_prefixes: ["component:", "module:", "area:"]
-  critical_labels: ["Critical", "P0", "high Priority", "bug" , "regression" , "blocker"]   # à ajuster après observation
-  sla_hours_critical: 72
+  label_sets:
+    # Nature du ticket
+    bug: ["Bug"]
+    enhancement: ["Enhancement"]
+    docs: ["Docs"]
+    question: ["Usage Question"]
+
+    # Triage / process (pas de KPI “incident” dessus)
+    process: ["Needs Triage", "Needs Discussion", "Needs Info", "Closing Candidate", "good first issue", "Needs Tests"]
+
+    # Severity (basée sur les labels explicites de pandas)
+    severity_critical: ["Blocker", "Blocker for rc", "Segfault"]
+    severity_major: ["Regression"]
+
+  component:
+    prefixes: ["component:", "module:", "area:"]
+    # Component allowlist (basée sur tes labels les plus fréquents hors triage/type/severity)
+    allowlist:
+      - Indexing
+      - Groupby
+      - Arrow
+      - Datetime
+      - Reshaping
+      - Missing-data
+      - Dtype Conversions
+      - Performance
+      - IO CSV
+      - Strings
+      - Error Reporting
+      - Deprecate
+      - MultiIndex
+      - Apply
+      - Build
+      - API Design
+      - Numeric Operations
+      - IO Excel
+      - Visualization
+      - ExtensionArray
+      - Categorical
+      - Index
+      - API - Consistency
+      - Window
+      - Reduction Operations
+      - IO SQL
+      - IO Data
+      - IO JSON
+      - NA - MaskedArrays
+      - Frequency
+
+  sla_hours_by_severity:
+    critical: 24
+    major: 72
+    minor: 168
+
   hours_in_month: 720

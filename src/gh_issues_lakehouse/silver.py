@@ -3,43 +3,13 @@ import json
 from pathlib import Path
 from collections import Counter
 
+import requests
 import pandas as pd
 import yaml
 from dotenv import load_dotenv
 
 
-def extract_component(labels, prefixes):
-    """
-    labels: list[str]
-    prefixes: list[str] like ["module:", "area:"]
-    Return a component name (string).
-    """
-    for lab in labels:
-        lab_lower = lab.lower().strip()
-        for pref in prefixes:
-            pref_lower = pref.lower().strip()
-            if lab_lower.startswith(pref_lower):
-                # example: "module: io" -> take text after "module:"
-                return lab.split(":", 1)[1].strip() if ":" in lab else "other"
-    return "other"
-
-
-def is_critical_issue(labels, critical_labels):
-    """
-    True if any label is in critical_labels (case-insensitive).
-    """
-    critical_set = {x.lower().strip() for x in critical_labels}
-    for lab in labels:
-        if lab.lower().strip() in critical_set:
-            return True
-    return False
-
-
 def find_latest_bronze_file(data_dir: Path, owner: str, repo: str) -> Path:
-    """
-    Example folder: data/bronze/pandas-dev__pandas/issues_YYYYMMDD_HHMMSS.jsonl
-    We pick the latest by filename sorting.
-    """
     folder = data_dir / "bronze" / f"{owner}__{repo}"
     files = sorted(folder.glob("issues_*.jsonl"))
     if not files:
@@ -47,97 +17,200 @@ def find_latest_bronze_file(data_dir: Path, owner: str, repo: str) -> Path:
     return files[-1]
 
 
+def fetch_repo_label_descriptions(owner: str, repo: str, headers: dict, per_page: int = 100) -> dict:
+    # Returns {label_name: description}
+    page = 1
+    desc_map = {}
+
+    while True:
+        url = f"https://api.github.com/repos/{owner}/{repo}/labels"
+        params = {"per_page": per_page, "page": page}
+
+        r = requests.get(url, headers=headers, params=params, timeout=60)
+        r.raise_for_status()
+        items = r.json()
+        if not items:
+            break
+
+        for lb in items:
+            name = lb.get("name")
+            if name:
+                desc_map[name] = lb.get("description") or ""
+
+        if len(items) < per_page:
+            break
+        page += 1
+
+    return desc_map
+
+
+def pick_component(labels, component_cfg):
+    # 1) try prefixes like "module: io"
+    prefixes = [p.lower().strip() for p in component_cfg.get("prefixes", [])]
+    for lab in labels:
+        lab_lower = lab.lower().strip()
+        for pref in prefixes:
+            if lab_lower.startswith(pref):
+                # take text after first ":" if exists
+                return lab.split(":", 1)[1].strip() if ":" in lab else "other"
+
+    # 2) try allowlist labels like "Indexing", "Groupby", ...
+    allowlist = component_cfg.get("allowlist", [])
+    label_set = set(labels)
+    for comp in allowlist:
+        if comp in label_set:
+            return comp
+
+    return "other"
+
+
+def compute_issue_type(labels, label_sets):
+    # Priority order (simple and deterministic)
+    if any(l in labels for l in label_sets.get("bug", [])):
+        return "bug"
+    if any(l in labels for l in label_sets.get("docs", [])):
+        return "docs"
+    if any(l in labels for l in label_sets.get("enhancement", [])):
+        return "enhancement"
+    if any(l in labels for l in label_sets.get("question", [])):
+        return "question"
+    return "other"
+
+
+def compute_severity(labels, label_sets):
+    # Severity is meaningful mainly for bug-like issues
+    if any(l in labels for l in label_sets.get("severity_critical", [])):
+        return "critical"
+    if any(l in labels for l in label_sets.get("severity_major", [])):
+        return "major"
+    if any(l in labels for l in label_sets.get("bug", [])):
+        return "minor"
+    return "na"
+
+
+def label_family(label_name, label_sets, component_allowlist):
+    # Used for the label catalog output
+    if label_name in label_sets.get("severity_critical", []):
+        return "severity_critical"
+    if label_name in label_sets.get("severity_major", []):
+        return "severity_major"
+    if label_name in label_sets.get("bug", []) or label_name in label_sets.get("enhancement", []) or label_name in label_sets.get("docs", []) or label_name in label_sets.get("question", []):
+        return "type"
+    if label_name in label_sets.get("process", []):
+        return "process"
+    if label_name in component_allowlist:
+        return "component"
+    return "other"
+
+
 def run_silver(config_path: str = "config.yml") -> None:
-    # Load .env (DATA_DIR)
     load_dotenv()
+    token = os.getenv("GITHUB_TOKEN", "").strip()
     data_dir = Path(os.getenv("DATA_DIR", "./data")).resolve()
 
-    # Load config.yml
     with open(config_path, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
-    repos = cfg["source"]["repos"]
+    rules = cfg.get("rules", {})
+    label_sets = rules.get("label_sets", {})
+    component_cfg = rules.get("component", {})
+    component_allowlist = component_cfg.get("allowlist", [])
 
-    prefixes = cfg.get("rules", {}).get("component_prefixes", ["module:", "area:", "component:"])
-    critical_labels = cfg.get("rules", {}).get("critical_labels", [])
+    sla_by_sev = rules.get("sla_hours_by_severity", {"critical": 24, "major": 72, "minor": 168})
 
-    total_rows = 0
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "gh-issues-lakehouse",
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
 
-    for r in repos:
+    for r in cfg["source"]["repos"]:
         owner = r["owner"]
         repo = r["repo"]
 
         bronze_file = find_latest_bronze_file(data_dir, owner, repo)
 
-        # Output folder for Silver
         silver_dir = data_dir / "silver" / f"{owner}__{repo}"
         silver_dir.mkdir(parents=True, exist_ok=True)
 
-        out_parquet = silver_dir / "issues.parquet"
-        out_csv = silver_dir / "issues.csv"
-        out_labels_csv = silver_dir / "label_counts.csv"
+        issues_out = silver_dir / "issues_silver.csv"
+        labels_out = silver_dir / "label_catalog.csv"
 
-        print(f"[silver] input={bronze_file}")
-        print(f"[silver] output={out_parquet}")
+        print(f"[silver] bronze={bronze_file}")
 
         rows = []
-        label_counter = Counter()
+        counter = Counter()
 
+        # Read bronze JSONL
         with open(bronze_file, "r", encoding="utf-8") as f_in:
             for line in f_in:
                 line = line.strip()
                 if not line:
                     continue
-
                 issue = json.loads(line)
 
-                # Labels list from GitHub payload
                 labels = [x.get("name") for x in issue.get("labels", []) if x.get("name")]
                 for lab in labels:
-                    label_counter[lab] += 1
+                    counter[lab] += 1
 
-                comp = extract_component(labels, prefixes)
-                crit = is_critical_issue(labels, critical_labels)
+                itype = compute_issue_type(labels, label_sets)
+                sev = compute_severity(labels, label_sets)
+                comp = pick_component(labels, component_cfg)
 
-                # Keep only essential fields
                 rows.append({
                     "issue_id": issue.get("id"),
                     "issue_number": issue.get("number"),
-                    "state": issue.get("state"),  # open / closed
+                    "state": issue.get("state"),
                     "title": issue.get("title"),
                     "body": issue.get("body"),
                     "created_at": issue.get("created_at"),
                     "updated_at": issue.get("updated_at"),
                     "closed_at": issue.get("closed_at"),
-                    "author_login": (issue.get("user") or {}).get("login"),
-                    "labels": "|".join(labels),      # simple string storage
+                    "labels": "|".join(labels),
+                    "issue_type": itype,
+                    "severity": sev,
+                    "is_critical": (sev == "critical"),
                     "component": comp,
-                    "is_critical": crit,
                 })
 
         df = pd.DataFrame(rows)
 
-        # Convert date columns to proper datetime
+        # Convert timestamps
         for col in ["created_at", "updated_at", "closed_at"]:
             df[col] = pd.to_datetime(df[col], utc=True, errors="coerce")
 
-        # Small summary (open / closed)
+        # Resolution time + SLA breach (only if closed)
+        df["resolution_hours"] = (df["closed_at"] - df["created_at"]).dt.total_seconds() / 3600.0
+        df.loc[df["closed_at"].isna(), "resolution_hours"] = pd.NA
+
+        def sla_breached(row):
+            if row["severity"] not in ("critical", "major", "minor"):
+                return False
+            if pd.isna(row["resolution_hours"]):
+                return False
+            return float(row["resolution_hours"]) > float(sla_by_sev.get(row["severity"], 999999))
+
+        df["sla_breached"] = df.apply(sla_breached, axis=1)
+
+        # Save silver issues (CSV is easy to open / visualize)
+        df.to_csv(issues_out, index=False, encoding="utf-8")
+        print(f"[silver] issues saved -> {issues_out} (rows={len(df)})")
+
+        # Build label catalog (count + description + family)
+        desc_map = fetch_repo_label_descriptions(owner, repo, headers=headers, per_page=100)
+        labels_df = pd.DataFrame(counter.most_common(), columns=["label", "count"])
+        labels_df["description"] = labels_df["label"].map(desc_map).fillna("")
+        labels_df["family"] = labels_df["label"].apply(lambda x: label_family(x, label_sets, component_allowlist))
+        labels_df.to_csv(labels_out, index=False, encoding="utf-8")
+        print(f"[silver] label catalog saved -> {labels_out} (labels={len(labels_df)})")
+
+        # Logs: open/closed + severity distribution
         open_count = int((df["state"] == "open").sum())
         closed_count = int((df["state"] == "closed").sum())
-        critical_count = int(df["is_critical"].sum())
+        print(f"[silver] stats: open={open_count} closed={closed_count}")
 
-        print(f"[silver] rows={len(df)} | open={open_count} | closed={closed_count} | critical={critical_count}")
+        sev_counts = df["severity"].value_counts(dropna=False).to_dict()
+        print(f"[silver] severity_counts={sev_counts}")
 
-        # Save Parquet + CSV (CSV is easy to open in Excel)
-        df.to_parquet(out_parquet, index=False)
-        df.to_csv(out_csv, index=False, encoding="utf-8")
 
-        # Save label frequency (to decide critical labels later)
-        labels_df = pd.DataFrame(label_counter.most_common(200), columns=["label", "count"])
-        labels_df.to_csv(out_labels_csv, index=False, encoding="utf-8")
-
-        total_rows += len(df)
-
-        print(f"[silver] label_counts saved -> {out_labels_csv}")
-
-    print(f"[silver] DONE. total_rows={total_rows}")
