@@ -3,63 +3,75 @@ source:
     - owner: pandas-dev
       repo: pandas
 
-ingestion:
-  per_page: 100
-  full_since: "2024-01-01T00:00:00Z"
-
 rules:
-  label_sets:
-    # Nature du ticket
+  # Labels qui indiquent la "nature" du ticket
+  type_labels:
     bug: ["Bug"]
-    enhancement: ["Enhancement"]
     docs: ["Docs"]
+    enhancement: ["Enhancement"]
     question: ["Usage Question"]
 
-    # Triage / process (pas de KPI “incident” dessus)
-    process: ["Needs Triage", "Needs Discussion", "Needs Info", "Closing Candidate", "good first issue", "Needs Tests"]
+  # Labels de triage/process (on les ignore pour choisir le component)
+  process_labels:
+    - "Needs Triage"
+    - "Needs Discussion"
+    - "Needs Info"
+    - "Closing Candidate"
+    - "good first issue"
+    - "Needs Tests"
+    - "Duplicate"
+    - "Upstream issue"
 
-    # Severity (basée sur les labels explicites de pandas)
-    severity_critical: ["Blocker", "Blocker for rc", "Segfault"]
-    severity_major: ["Regression"]
+  # Severity (basée sur labels explicites trouvés dans ton fichier)
+  severity_labels:
+    critical: ["Blocker", "Blocker for rc", "Segfault"]
+    major: ["Regression"]
+    minor_fallback_if_bug: true
 
+  # Règles component
   component:
     prefixes: ["component:", "module:", "area:"]
-    # Component allowlist (basée sur tes labels les plus fréquents hors triage/type/severity)
     allowlist:
-      - Indexing
-      - Groupby
-      - Arrow
-      - Datetime
-      - Reshaping
-      - Missing-data
-      - Dtype Conversions
-      - Performance
-      - IO CSV
-      - Strings
-      - Error Reporting
-      - Deprecate
-      - MultiIndex
-      - Apply
-      - Build
-      - API Design
-      - Numeric Operations
-      - IO Excel
-      - Visualization
-      - ExtensionArray
-      - Categorical
-      - Index
-      - API - Consistency
-      - Window
-      - Reduction Operations
-      - IO SQL
-      - IO Data
-      - IO JSON
-      - NA - MaskedArrays
-      - Frequency
+      - "Indexing"
+      - "Groupby"
+      - "Arrow"
+      - "Datetime"
+      - "Reshaping"
+      - "Missing-data"
+      - "Dtype Conversions"
+      - "Performance"
+      - "IO CSV"
+      - "Strings"
+      - "Error Reporting"
+      - "Deprecate"
+      - "MultiIndex"
+      - "Apply"
+      - "Build"
+      - "Numeric Operations"
+      - "IO Excel"
+      - "Visualization"
+      - "ExtensionArray"
+      - "Categorical"
+      - "Index"
+      - "Window"
+      - "Reduction Operations"
+      - "IO SQL"
+      - "IO JSON"
+      - "NA - MaskedArrays"
+      - "Frequency"
+      # bonus (chez toi c'est fréquent mais pas classé component)
+      - "Constructors"
+      - "IO Parquet"
+      - "Output-Formatting"
+      - "Warnings"
+      - "Timezones"
+      - "Timedelta"
+      - "Period"
+      - "Resample"
+      - "Compat"
 
+  # SLA (heures) par severity (choix projet)
   sla_hours_by_severity:
     critical: 24
     major: 72
     minor: 168
-
-  hours_in_month: 720
