@@ -18,7 +18,8 @@ def main():
         from gh_issues_lakehouse.silver import run_silver
         run_silver()
     else:
-        print(f"{args.command} not implemented yet (coming in next commits).")
+        from gh_issues_lakehouse.gold import run_gold
+        run_gold()
 
     print(f"Command selected: {args.command}")
 
