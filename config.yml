@@ -4,14 +4,14 @@ source:
       repo: pandas
 
 rules:
-  # Labels qui indiquent la "nature" du ticket
-  type_labels:
+  # 1) Ticket nature
+  kind_labels:
     bug: ["Bug"]
-    docs: ["Docs"]
     enhancement: ["Enhancement"]
+    docs: ["Docs"]
     question: ["Usage Question"]
 
-  # Labels de triage/process (on les ignore pour choisir le component)
+  # 2) Labels process / triage (à ignorer pour choisir un component)
   process_labels:
     - "Needs Triage"
     - "Needs Discussion"
@@ -19,16 +19,16 @@ rules:
     - "Closing Candidate"
     - "good first issue"
     - "Needs Tests"
-    - "Duplicate"
+    - "Duplicate Report"
     - "Upstream issue"
 
-  # Severity (basée sur labels explicites trouvés dans ton fichier)
-  severity_labels:
-    critical: ["Blocker", "Blocker for rc", "Segfault"]
-    major: ["Regression"]
-    minor_fallback_if_bug: true
+  # 3) Priority tiers (adapté GitHub)
+  priority_tiers:
+    P0: ["Blocker", "Blocker for rc", "Segfault"]
+    P1: ["Regression"]
+    P2_fallback_if_bug: true   # si Bug et pas P0/P1 -> P2
 
-  # Règles component
+  # 4) Component
   component:
     prefixes: ["component:", "module:", "area:"]
     allowlist:
@@ -47,31 +47,24 @@ rules:
       - "MultiIndex"
       - "Apply"
       - "Build"
+      - "API Design"
       - "Numeric Operations"
       - "IO Excel"
-      - "Visualization"
       - "ExtensionArray"
+      - "Visualization"
       - "Categorical"
       - "Index"
+      - "API - Consistency"
       - "Window"
       - "Reduction Operations"
       - "IO SQL"
       - "IO JSON"
       - "NA - MaskedArrays"
+      - "IO Data"
       - "Frequency"
-      # bonus (chez toi c'est fréquent mais pas classé component)
-      - "Constructors"
-      - "IO Parquet"
-      - "Output-Formatting"
-      - "Warnings"
-      - "Timezones"
-      - "Timedelta"
-      - "Period"
-      - "Resample"
-      - "Compat"
 
-  # SLA (heures) par severity (choix projet)
-  sla_hours_by_severity:
-    critical: 24
-    major: 72
-    minor: 168
+  # 5) Time buckets (pas des SLA, juste des stats)
+  time_buckets_hours: [24, 72, 168, 336]
+
+  # 6) Base mensuelle
+  hours_in_month: 720
