@@ -1,0 +1,70 @@
+source:
+  repos:
+    - owner: pandas-dev
+      repo: pandas
+
+rules:
+  # 1) Ticket nature
+  kind_labels:
+    bug: ["Bug"]
+    enhancement: ["Enhancement"]
+    docs: ["Docs"]
+    question: ["Usage Question"]
+
+  # 2) Labels process / triage (à ignorer pour choisir un component)
+  process_labels:
+    - "Needs Triage"
+    - "Needs Discussion"
+    - "Needs Info"
+    - "Closing Candidate"
+    - "good first issue"
+    - "Needs Tests"
+    - "Duplicate Report"
+    - "Upstream issue"
+
+  # 3) Priority tiers (adapté GitHub)
+  priority_tiers:
+    P0: ["Blocker", "Blocker for rc", "Segfault"]
+    P1: ["Regression"]
+    P2_fallback_if_bug: true   # si Bug et pas P0/P1 -> P2
+
+  # 4) Component
+  component:
+    prefixes: ["component:", "module:", "area:"]
+    allowlist:
+      - "Indexing"
+      - "Groupby"
+      - "Arrow"
+      - "Datetime"
+      - "Reshaping"
+      - "Missing-data"
+      - "Dtype Conversions"
+      - "Performance"
+      - "IO CSV"
+      - "Strings"
+      - "Error Reporting"
+      - "Deprecate"
+      - "MultiIndex"
+      - "Apply"
+      - "Build"
+      - "API Design"
+      - "Numeric Operations"
+      - "IO Excel"
+      - "ExtensionArray"
+      - "Visualization"
+      - "Categorical"
+      - "Index"
+      - "API - Consistency"
+      - "Window"
+      - "Reduction Operations"
+      - "IO SQL"
+      - "IO JSON"
+      - "NA - MaskedArrays"
+      - "IO Data"
+      - "Frequency"
+
+  # 5) Time buckets (pas des SLA, juste des stats)
+  time_buckets_hours: [24, 72, 168, 336]
+
+  # 6) Base mensuelle
+  hours_in_month: 720

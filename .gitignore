@@ -5,3 +5,4 @@ data/
 .state/
 *.pyc
 *.egg-info/
+config.yml
