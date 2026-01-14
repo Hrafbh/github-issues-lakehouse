@@ -5,7 +5,7 @@ def main():
 
     parser.add_argument(
         "command",
-        choices=["ingest", "silver", "gold"],
+        choices=["ingest", "silver", "gold", "demo"],
         help="Which step to run"
     )
 
@@ -17,6 +17,9 @@ def main():
     elif args.command == "silver":
         from gh_issues_lakehouse.silver import run_silver
         run_silver()
+    elif args.command == "demo":
+        from gh_issues_lakehouse.demo import run_demo
+        run_demo()
     else:
         from gh_issues_lakehouse.gold import run_gold
         run_gold()
