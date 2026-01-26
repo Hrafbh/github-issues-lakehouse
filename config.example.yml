@@ -2,6 +2,7 @@ source:
   repos:
     - owner: pandas-dev
       repo: pandas
+  created_from: "2016-01-01"
 
 rules:
   # 1) Ticket nature
