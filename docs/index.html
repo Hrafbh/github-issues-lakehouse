@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GitHub Issues Lakehouse — Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+  <header class="container">
+    <h1>GitHub Issues Lakehouse</h1>
+    <p class="subtitle">KPIs Gold (monthly) — snapshots CSV</p>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Flow (Created vs Closed)</h2>
+      <div id="chart_flow" class="chart"></div>
+    </section>
+
+    <section class="card">
+      <h2>Backlog (end of month)</h2>
+      <div id="chart_backlog" class="chart"></div>
+    </section>
+
+    <section class="card">
+      <h2>Resolution time (hours)</h2>
+      <div id="chart_resolution" class="chart"></div>
+    </section>
+
+    <section class="card">
+      <h2>Last months (table)</h2>
+      <div id="table_global"></div>
+    </section>
+  </main>
+
+  <footer class="container footer">
+    <span id="last_update"></span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

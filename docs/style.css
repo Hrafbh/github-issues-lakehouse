@@ -1,0 +1,9 @@
+:root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+.container { max-width: 1050px; margin: 0 auto; padding: 16px; }
+.subtitle { color: #555; margin-top: 6px; }
+.card { background: #fff; border: 1px solid #eee; border-radius: 14px; padding: 16px; margin: 14px 0; }
+.chart { width: 100%; height: 420px; }
+.footer { color: #666; font-size: 14px; padding-bottom: 40px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { border-bottom: 1px solid #eee; padding: 8px; text-align: left; font-size: 14px; }
+th { background: #fafafa; }
